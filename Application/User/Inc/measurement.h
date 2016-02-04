@@ -15,6 +15,16 @@
 
 #define SENSOR_ENTRIES 3
 
+#define SENSOR_OFFSET 2068 // ADC at 0A - see static int MEASUREMENT_ScaleAmps(int rawval)
+
+
+typedef enum {
+  TRG_PREPARE,
+  TRG_READY,
+  TRG_TRIGGERED,
+  TRG_COMPLETE
+}enTRIGGER;
+
 /* Global variables -------------------------------------------------*/
 
 /* Function prototypes -------------------------------------------------*/
@@ -23,5 +33,8 @@ inline void MEASUREMENT_NewSample(uint16_t value);
 int MEASUREMENT_GetFrequency(void);
 int MEASUREMENT_GetSlowFilt(void);
 void MEASUREMENT_CopyZoomField(uint8_t target[]);
+int MEASUREMENT_GetMin(void);
+int MEASUREMENT_GetMax(void);
+int MEASUREMENT_GetRatio(void);
 
 #endif // __measurement_H

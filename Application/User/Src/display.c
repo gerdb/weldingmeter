@@ -292,14 +292,20 @@ void DISPLAY_Task(void) {
 		} else if (taskcnt_256ms == 1) {
 			DISPLAY_Show_Scope1();
 		} else if (taskcnt_256ms == 2) {
-			DISPLAY_Show_Value_Amps(42); //MEASUREMENT_GetSlowFilt());
+			DISPLAY_Show_Value_Amps(MEASUREMENT_GetSlowFilt());
 		} else if (taskcnt_256ms == 3) {
 			DISPLAY_Show_Value_Frq(MEASUREMENT_GetFrequency());
-		} else if (taskcnt_256ms_mod_32 == 4) {
+		} else if (taskcnt_256ms == 4) {
+			DISPLAY_Show_Value_AmpsMin(MEASUREMENT_GetMin());
+		} else if (taskcnt_256ms == 5) {
+			DISPLAY_Show_Value_AmpsMax(MEASUREMENT_GetMax());
+		} else if (taskcnt_256ms == 6) {
+			DISPLAY_Show_Value_Duty(MEASUREMENT_GetRatio());
+		} else if (taskcnt_256ms_mod_32 == 20) {
 			MEASUREMENT_CopyZoomField(scope2);
-		} else if (taskcnt_256ms_mod_32 == 5) {
+		} else if (taskcnt_256ms_mod_32 == 21) {
 			DISPLAY_Show_Scope2();
-		} else if (taskcnt_256ms_mod_32 == 6) {
+		} else if (taskcnt_256ms_mod_32 == 22) {
 			DISPLAY_TouchButtons();
 		}
 
@@ -385,23 +391,23 @@ void DISPLAY_Task(void) {
 
 static void DISPLAY_Show_Value_AmpsMax(int amps) {
 	char txt[10];
-	sprintf(txt, "%3d", amps);
-	DISPLAY_DrawString(195, 152, 3, txt);
+	sprintf(txt, "%4d", amps);
+	DISPLAY_DrawString(180, 152, 3, txt);
 	DISPLAY_DrawString(255, 152, 3, "A");
 }
 
 void DISPLAY_Show_Value_AmpsMin(int amps) {
 	char txt[10];
-	sprintf(txt,"%3d", amps);
-	DISPLAY_DrawString(195,227,3, txt);
+	sprintf(txt,"%4d", amps);
+	DISPLAY_DrawString(180,227,3, txt);
 	DISPLAY_DrawString(255,227,3, "A");
 }
 
 void DISPLAY_Show_Value_Amps(int amps) {
 	char txt[10];
-	sprintf(txt,"%3d", amps);
+	sprintf(txt,"%4d", amps);
 	DISPLAY_DrawString(320,66,4, txt);
-	DISPLAY_DrawString(400,66,4, "A");
+	DISPLAY_DrawString(420,66,4, "A");
 }
 
 void DISPLAY_Show_Value_Frq(int frq) {
@@ -418,7 +424,9 @@ void DISPLAY_Show_Value_Duty(int duty) {
 	DISPLAY_DrawString(400,166,4, "%");
 }
 
-
+/**
+ * 250 x 101 Pixel
+ */
 static void DISPLAY_Show_Scope1(void) {
 	int x;
 	for (x = 0; x < 250; x++) {
@@ -433,6 +441,9 @@ static void DISPLAY_Show_Scope1(void) {
 
 }
 
+/**
+ * 250 x 101 Pixel
+ */
 static void DISPLAY_Show_Scope2(void) {
 	int x;
 	for (x = 0; x < 160; x++) {
@@ -447,15 +458,31 @@ static void DISPLAY_Show_Scope2(void) {
 	}
 }
 
-static void DISPLAY_NewValue(int val) {
+static void DISPLAY_NewValue(int amps) {
 	static int t = 0;
+	int val;
 	int x;
 	t++;
 
+	// Shift left
 	for (x = 0; x < 249; x++) {
 		scope1[x] = scope1[x + 1];
 	}
-	scope1[249] = val / 32;
+
+	if (SETUP_GetACDC() == SETUP_AC) {
+		// Scale -200..200A to 0..100px
+		val = amps / 4 + 50;
+	} else {
+		// Scale 0..200A to 0..100px
+		val = amps / 2;
+	}
+
+	// Limit it
+	if (val < 0)
+		val = 0;
+	if (val > 100)
+		val = 100;
+	scope1[249] = val;
 }
 /**
  * @brief  LCD configuration
