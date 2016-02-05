@@ -86,6 +86,8 @@ static void DISPLAY_Show_Scope1(void);
 static void DISPLAY_Show_Scope2(void);
 static void DISPLAY_TouchButtons(void);
 static void DISPLAY_DrawBar(int xpos, int ypos, int max, int val);
+static void DISPLAY_Show_Cursor(void);
+static void DISPLAY_ShowHistory(int index);
 
 /* Private variables ---------------------------------------------------------*/
 
@@ -125,6 +127,10 @@ en_DISPLAY_startup screen = start;
 int startup_cnt = 0;
 
 volatile int xxxx = 0;
+int cursor = 0;
+int autosave_cnt = 0;
+MEASUREMENT_tHistory history_entry;
+
 
 static void DISPLAY_ShowJPG(uint32_t LayerIndex, const int jpg_length,
 		const uint8_t jpg_data[]);
@@ -208,6 +214,7 @@ static void DISPLAY_DrawBar(int xpos, int ypos, int max, int val) {
 void DISPLAY_Task(void) {
 
 	static int taskcnt_256ms = 0;
+	int taskcnt_256ms_mod_16;
 	int taskcnt_256ms_mod_32;
 
 	if (startup_cnt < 99999) {
@@ -286,32 +293,50 @@ void DISPLAY_Task(void) {
 		break;
 	case background:
 
+		taskcnt_256ms_mod_16 = taskcnt_256ms % 16;
 		taskcnt_256ms_mod_32 = taskcnt_256ms % 32;
-		if (taskcnt_256ms == 0) {
-			DISPLAY_NewValue(MEASUREMENT_GetSlowFilt());
-		} else if (taskcnt_256ms == 1) {
-			DISPLAY_Show_Scope1();
-		} else if (taskcnt_256ms == 2) {
-			DISPLAY_Show_Value_Amps(MEASUREMENT_GetSlowFilt());
-		} else if (taskcnt_256ms == 3) {
-			DISPLAY_Show_Value_Frq(MEASUREMENT_GetFrequency());
-		} else if (taskcnt_256ms == 4) {
-			DISPLAY_Show_Value_AmpsMin(MEASUREMENT_GetMin());
-		} else if (taskcnt_256ms == 5) {
-			DISPLAY_Show_Value_AmpsMax(MEASUREMENT_GetMax());
-		} else if (taskcnt_256ms == 6) {
-			DISPLAY_Show_Value_Duty(MEASUREMENT_GetRatio());
-		} else if (taskcnt_256ms_mod_32 == 20) {
-			MEASUREMENT_CopyZoomField(scope2);
-		} else if (taskcnt_256ms_mod_32 == 21) {
-			DISPLAY_Show_Scope2();
-		} else if (taskcnt_256ms_mod_32 == 22) {
+
+		if (MEASUREMENT_GetRun() == RUN) {
+			if (taskcnt_256ms == 0) {
+				DISPLAY_NewValue(MEASUREMENT_GetSlowFilt());
+			} else if (taskcnt_256ms == 1) {
+				DISPLAY_Show_Scope1();
+			} else if (taskcnt_256ms == 2) {
+				DISPLAY_Show_Value_Amps(MEASUREMENT_GetSlowFilt());
+			} else if (taskcnt_256ms == 3) {
+				DISPLAY_Show_Value_Frq(MEASUREMENT_GetFrequency());
+			} else if (taskcnt_256ms == 4) {
+				DISPLAY_Show_Value_AmpsMin(MEASUREMENT_GetMin());
+			} else if (taskcnt_256ms == 5) {
+				DISPLAY_Show_Value_AmpsMax(MEASUREMENT_GetMax());
+			} else if (taskcnt_256ms == 6) {
+				DISPLAY_Show_Value_Duty(MEASUREMENT_GetRatio());
+			} else if (taskcnt_256ms_mod_32 == 20) {
+				MEASUREMENT_CopyZoomField(scope2);
+			} else if (taskcnt_256ms_mod_32 == 21) {
+				DISPLAY_Show_Scope2();
+			}
+		} else {
+			DISPLAY_Show_Cursor();
+		}
+
+
+		if (taskcnt_256ms_mod_16 == 15) {
 			DISPLAY_TouchButtons();
 		}
 
 		taskcnt_256ms++;
 		if (taskcnt_256ms >= 256) {
 			taskcnt_256ms = 0;
+			if (MEASUREMENT_GetRun() == RUN) {
+				if (autosave_cnt < 25) {
+					autosave_cnt++;
+				} else {
+					MEASUREMENT_SaveHistory();
+					autosave_cnt = 0;
+				}
+			}
+
 		}
 		break;
 	case fade_out_background:
@@ -386,7 +411,32 @@ void DISPLAY_Task(void) {
 
 }
 
+static void DISPLAY_Show_Cursor(void) {
+	int i,x,y;
+	int color;
+	if (MEASUREMENT_GetRun() == RUN) {
+		cursor = -1;
+	} else {
+		if (cursor == -1)
+			cursor = 0;
+	}
 
+	for (i=0; i < HISTORY_ENTRIES; i++) {
+		if (i == cursor) {
+			color = DISPLAY_COLOR_LTBLUE;
+		} else {
+			color = 0x00000000;
+		}
+		for (y = 0; y< 8; y++) {
+			for (x = -y; x< y; x++) {
+				BSP_LCD_DrawPixel(270 + x - i * 25, 128 + y, color);
+			}
+		}
+
+	}
+
+
+}
 
 
 static void DISPLAY_Show_Value_AmpsMax(int amps) {
@@ -432,9 +482,9 @@ static void DISPLAY_Show_Scope1(void) {
 	for (x = 0; x < 250; x++) {
 		if (scope1[x] != scope1_old[x]) {
 			if ((scope1_old[x] >= 0) && (scope1_old[x] <= 100))
-				BSP_LCD_DrawPixel(20 + x, 120 - scope1_old[x], 0x00000000);
+				BSP_LCD_DrawPixel(20 + x, 121 - scope1_old[x], 0x00000000);
 			if ((scope1[x] >= 0) && (scope1[x] <= 100))
-				BSP_LCD_DrawPixel(20 + x, 120 - scope1[x], 0xFF019cff);
+				BSP_LCD_DrawPixel(20 + x, 121 - scope1[x], 0xFF019cff);
 			scope1_old[x] = scope1[x];
 		}
 	}
@@ -593,6 +643,24 @@ static void DISPLAY_ShowJPG(uint32_t LayerIndex, const int jpg_length,
 	}
 }
 
+static void DISPLAY_ShowHistory(int index) {
+	int i;
+
+	history_entry = MEASUREMENT_GetHistory(index);
+
+	DISPLAY_Show_Value_Amps(history_entry.amps);
+	DISPLAY_Show_Value_Frq(history_entry.frequency);
+	DISPLAY_Show_Value_AmpsMin(history_entry.zoom_min);
+	DISPLAY_Show_Value_AmpsMax(history_entry.zoom_max);
+	DISPLAY_Show_Value_Duty(history_entry.ratio);
+
+	for (i=0; i<160; i++)
+		scope2[i]= history_entry.zoom[i];
+
+	DISPLAY_Show_Scope2();
+
+}
+
 /**
  * @brief  Test touch screen state and modify audio state machine according to that
  * @param  None
@@ -615,24 +683,29 @@ static void DISPLAY_TouchButtons(void) {
 						&& (TS_State.touchY[0] <= TOUCH_NEXT_YMAX)) {
 					screen = fade_out_background;
 					startup_cnt = 0;
+					AUDIO_PlaySound(SOUND_BEEP);
 				}
 				if ((TS_State.touchX[0] >= TOUCH_BACK_XMIN)
 						&& (TS_State.touchX[0] <= TOUCH_BACK_XMAX)
 						&& (TS_State.touchY[0] >= TOUCH_BACK_YMIN)
 						&& (TS_State.touchY[0] <= TOUCH_BACK_YMAX)) {
-					if (xxxx > 1) {
-						xxxx+=10;
+					if (MEASUREMENT_GetRun() == STOP) {
+						if (cursor < (HISTORY_ENTRIES-1))
+							cursor ++;
+						AUDIO_PlaySound(SOUND_BEEP);
+						DISPLAY_ShowHistory(cursor);
 					}
-					VOICE_Say(xxxx);
 				}
 				if ((TS_State.touchX[0] >= TOUCH_FORW_XMIN)
 						&& (TS_State.touchX[0] <= TOUCH_FORW_XMAX)
 						&& (TS_State.touchY[0] >= TOUCH_FORW_YMIN)
 						&& (TS_State.touchY[0] <= TOUCH_FORW_YMAX)) {
-					if (xxxx < 999) {
-						xxxx++;
+					if (MEASUREMENT_GetRun() == STOP) {
+						if (cursor > 0)
+							cursor --;
+						AUDIO_PlaySound(SOUND_BEEP);
+						DISPLAY_ShowHistory(cursor);
 					}
-					VOICE_Say(xxxx);
 				}
 			} else if (screen == settings) {
 				if ((TS_State.touchX[0] >= TOUCH_NEXT_XMIN)
@@ -643,6 +716,7 @@ static void DISPLAY_TouchButtons(void) {
 					screen = fade_out_settings;
 					startup_cnt = 0;
 					xxxx = 0;
+					AUDIO_PlaySound(SOUND_BEEP);
 				}
 				if ((TS_State.touchX[0] >= TOUCH_VOL_M_XMIN)
 						&& (TS_State.touchX[0] <= TOUCH_VOL_M_XMAX)
@@ -669,38 +743,42 @@ static void DISPLAY_TouchButtons(void) {
 						&& (TS_State.touchY[0] >= TOUCH_DC_YMIN)
 						&& (TS_State.touchY[0] <= TOUCH_DC_YMAX)) {
 					SETUP_SetACDC(SETUP_DC);
+					AUDIO_PlaySound(SOUND_BEEP);
 				}
 				if ((TS_State.touchX[0] >= TOUCH_AC_XMIN)
 						&& (TS_State.touchX[0] <= TOUCH_AC_XMAX)
 						&& (TS_State.touchY[0] >= TOUCH_AC_YMIN)
 						&& (TS_State.touchY[0] <= TOUCH_AC_YMAX)) {
 					SETUP_SetACDC(SETUP_AC);
+					AUDIO_PlaySound(SOUND_BEEP);
 				}
 				if ((TS_State.touchX[0] >= TOUCH_MEAN_XMIN)
 						&& (TS_State.touchX[0] <= TOUCH_MEAN_XMAX)
 						&& (TS_State.touchY[0] >= TOUCH_MEAN_YMIN)
 						&& (TS_State.touchY[0] <= TOUCH_MEAN_YMAX)) {
 					SETUP_SetMEAN_PEAK(SETUP_MEAN);
-
+					AUDIO_PlaySound(SOUND_BEEP);
 				}
 				if ((TS_State.touchX[0] >= TOUCH_PEAK_XMIN)
 						&& (TS_State.touchX[0] <= TOUCH_PEAK_XMAX)
 						&& (TS_State.touchY[0] >= TOUCH_PEAK_YMIN)
 						&& (TS_State.touchY[0] <= TOUCH_PEAK_YMAX)) {
 					SETUP_SetMEAN_PEAK(SETUP_PEAK);
+					AUDIO_PlaySound(SOUND_BEEP);
 				}
 				if ((TS_State.touchX[0] >= TOUCH_LANG_DE_XMIN)
 						&& (TS_State.touchX[0] <= TOUCH_LANG_DE_XMAX)
 						&& (TS_State.touchY[0] >= TOUCH_LANG_DE_YMIN)
 						&& (TS_State.touchY[0] <= TOUCH_LANG_DE_YMAX)) {
 					SETUP_SetLanguage(SETUP_DE);
-
+					AUDIO_PlaySound(SOUND_BEEP);
 				}
 				if ((TS_State.touchX[0] >= TOUCH_LANG_DA_XMIN)
 						&& (TS_State.touchX[0] <= TOUCH_LANG_DA_XMAX)
 						&& (TS_State.touchY[0] >= TOUCH_LANG_DA_YMIN)
 						&& (TS_State.touchY[0] <= TOUCH_LANG_DA_YMAX)) {
 					SETUP_SetLanguage(SETUP_DA);
+					AUDIO_PlaySound(SOUND_BEEP);
 				}
 
 			}

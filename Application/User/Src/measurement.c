@@ -4,15 +4,16 @@
 /* Private functions ---------------------------------------------------------*/
 static int MEASUREMENT_ScaleAmps(int rawval);
 
+
 /* Private variables ---------------------------------------------------------*/
-uint32_t prefilt = 0;
-uint32_t prefilt_L = 0;
-uint32_t dc_offset = 0;
-uint32_t dc_offset_L = 0;
-uint32_t slowfilt = 0;
-uint32_t slowfilt_L = 0;
-uint32_t zoomfilt = 0;
-uint32_t zoomfilt_L = 0;
+int prefilt = 0;
+int prefilt_L = 0;
+int dc_offset = 0;
+int dc_offset_L = 0;
+int slowfilt = 0;
+int slowfilt_L = 0;
+int zoomfilt = 0;
+int zoomfilt_L = 0;
 int zoomfilt_shift = 0;
 int zoom_n = 1;
 int zoom_n_cnt = 0;
@@ -38,8 +39,19 @@ int period_cnt = 0;
 int period = 0;
 int pulse = 0;
 int sensor_offset = 2068;
+int offset_cnt = 0;
+int measurement_run = RUN;
+int stop_cnt = 0;
+
+uint8_t zoom_tmp[160];
+MEASUREMENT_tHistory history[HISTORY_ENTRIES];
+int history_index = -1;
 
 void MEASUREMENT_Init(void) {
+}
+
+int MEASUREMENT_GetRun(void) {
+	return measurement_run;
 }
 
 inline void MEASUREMENT_NewSample(uint16_t value) {
@@ -48,7 +60,7 @@ inline void MEASUREMENT_NewSample(uint16_t value) {
 	prefilt_L += value - prefilt;
 	prefilt = prefilt_L / T_PREFILT;
 
-	// Filter the stream with t= 655ms for DC offset
+	// Filter the stream with t= 163ms for DC offset
 	dc_offset_L += prefilt - dc_offset;
 	dc_offset = dc_offset_L / T_DC_OFFSET;
 
@@ -59,6 +71,33 @@ inline void MEASUREMENT_NewSample(uint16_t value) {
 	// Filter the zoomed samples
 	zoomfilt_L += prefilt - zoomfilt;
 	zoomfilt = zoomfilt_L >> zoomfilt_shift;
+
+	// Zero calibration
+	if (offset_cnt <= OFFSET_TIME) {
+		offset_cnt++;
+		if (offset_cnt == OFFSET_TIME) {
+			sensor_offset = slowfilt;
+			zoom_min_hold = sensor_offset;
+			zoom_max_hold = sensor_offset;
+		}
+	}
+
+	// No welding current
+	if ((     (slowfilt-sensor_offset) <  STOP_THRESHOLD ) &&
+			( (slowfilt-sensor_offset) > -STOP_THRESHOLD )) {
+
+		// Stop after a certain time
+		if (stop_cnt < ONE_MEASUREMENT_SEC) {
+			stop_cnt++;
+		} else {
+			measurement_run = STOP;
+		}
+	} else {
+		stop_cnt = 0;
+		measurement_run = RUN;
+	}
+
+
 
 	// use every nth sample for zoom
 	zoom_n_cnt++;
@@ -140,9 +179,13 @@ int MEASUREMENT_GetFrequency(void) {
 		return 0;
 	return SAMPLING_FRQ / period;
 }
+
 int MEASUREMENT_GetRatio(void) {
 	if (period == 0)
 		return 100;
+	if (pulse > period) {
+		return 100;
+	}
 	return ((pulse * 100) / period);
 }
 
@@ -184,6 +227,10 @@ void MEASUREMENT_CopyZoomField(uint8_t target[]) {
 	int i,ii,iii;
 	int scale, offset;
 	int val;
+
+	if (measurement_run == STOP)
+		return;
+
 	offset = (zoom_min + zoom_max) / 2;
 	scale = (zoom_max - zoom_min);
 
@@ -215,7 +262,7 @@ void MEASUREMENT_CopyZoomField(uint8_t target[]) {
 
 			// Copy
 			target[iii] = (uint8_t)(val);
-
+			zoom_tmp[iii] = (uint8_t)(val);
 
 			ii++;
 			if (ii >= 160) {
@@ -235,4 +282,27 @@ void MEASUREMENT_CopyZoomField(uint8_t target[]) {
 
 }
 
+void MEASUREMENT_SaveHistory(void) {
+	int i;
+	history_index++;
+	if (history_index >= HISTORY_ENTRIES)
+		history_index = HISTORY_ENTRIES;
 
+	history[history_index].zoom_min = MEASUREMENT_GetMin();
+	history[history_index].zoom_max = MEASUREMENT_GetMax();
+	history[history_index].amps = MEASUREMENT_GetSlowFilt();
+	history[history_index].frequency = MEASUREMENT_GetFrequency();
+	history[history_index].ratio = MEASUREMENT_GetRatio();
+
+	for (i=0; i<160; i++)
+		history[history_index].zoom[i] = zoom_tmp[i];
+}
+
+MEASUREMENT_tHistory MEASUREMENT_GetHistory(int index) {
+	int i;
+
+	i = history_index - index;
+	if (i < 0)
+		i+= HISTORY_ENTRIES;
+	return history[i];
+}
