@@ -19,7 +19,8 @@
 #define SENSOR_OFFSET 2068 // ADC at 0A - see static int MEASUREMENT_ScaleAmps(int rawval)
 #define ONE_MEASUREMENT_SEC 100000
 #define OFFSET_TIME (2*ONE_MEASUREMENT_SEC) // Sample count. 200000 @100KHz = 2sec
-#define HISTORY_ENTRIES 11
+#define AUTOSAVE_CYCLE 10 // in 0.256s steps
+#define HISTORY_ENTRIES (250 / AUTOSAVE_CYCLE)
 
 #define RUN 1
 #define STOP 0

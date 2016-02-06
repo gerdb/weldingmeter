@@ -130,6 +130,7 @@ volatile int xxxx = 0;
 int cursor = 0;
 int autosave_cnt = 0;
 MEASUREMENT_tHistory history_entry;
+int speak_cnt = 0;
 
 
 static void DISPLAY_ShowJPG(uint32_t LayerIndex, const int jpg_length,
@@ -297,8 +298,16 @@ void DISPLAY_Task(void) {
 		taskcnt_256ms_mod_32 = taskcnt_256ms % 32;
 
 		if (MEASUREMENT_GetRun() == RUN) {
+			cursor = -1;
 			if (taskcnt_256ms == 0) {
 				DISPLAY_NewValue(MEASUREMENT_GetSlowFilt());
+				if (autosave_cnt < AUTOSAVE_CYCLE) {
+					autosave_cnt++;
+				} else {
+					MEASUREMENT_SaveHistory();
+					autosave_cnt = 0;
+				}
+
 			} else if (taskcnt_256ms == 1) {
 				DISPLAY_Show_Scope1();
 			} else if (taskcnt_256ms == 2) {
@@ -311,12 +320,24 @@ void DISPLAY_Task(void) {
 				DISPLAY_Show_Value_AmpsMax(MEASUREMENT_GetMax());
 			} else if (taskcnt_256ms == 6) {
 				DISPLAY_Show_Value_Duty(MEASUREMENT_GetRatio());
+			} else if (taskcnt_256ms == 7) {
+				DISPLAY_Show_Cursor();
+			} else if (taskcnt_256ms == 8) {
+				speak_cnt++;
+				if (speak_cnt >= 8) {
+					speak_cnt = 0;
+					VOICE_Say(MEASUREMENT_GetSlowFilt());
+				}
 			} else if (taskcnt_256ms_mod_32 == 20) {
 				MEASUREMENT_CopyZoomField(scope2);
 			} else if (taskcnt_256ms_mod_32 == 21) {
 				DISPLAY_Show_Scope2();
 			}
 		} else {
+			if (cursor == -1) {
+				cursor = 4;
+				DISPLAY_ShowHistory(cursor);
+			}
 			DISPLAY_Show_Cursor();
 		}
 
@@ -328,15 +349,6 @@ void DISPLAY_Task(void) {
 		taskcnt_256ms++;
 		if (taskcnt_256ms >= 256) {
 			taskcnt_256ms = 0;
-			if (MEASUREMENT_GetRun() == RUN) {
-				if (autosave_cnt < 25) {
-					autosave_cnt++;
-				} else {
-					MEASUREMENT_SaveHistory();
-					autosave_cnt = 0;
-				}
-			}
-
 		}
 		break;
 	case fade_out_background:
@@ -412,30 +424,18 @@ void DISPLAY_Task(void) {
 }
 
 static void DISPLAY_Show_Cursor(void) {
-	int i,x,y;
-	int color;
-	if (MEASUREMENT_GetRun() == RUN) {
-		cursor = -1;
-	} else {
-		if (cursor == -1)
-			cursor = 0;
-	}
+	int x,y;
 
-	for (i=0; i < HISTORY_ENTRIES; i++) {
-		if (i == cursor) {
-			color = DISPLAY_COLOR_LTBLUE;
-		} else {
-			color = 0x00000000;
-		}
+
+	for (x = -8; x< (250+8); x++) {
 		for (y = 0; y< 8; y++) {
-			for (x = -y; x< y; x++) {
-				BSP_LCD_DrawPixel(270 + x - i * 25, 128 + y, color);
+			if ((x >= (250-(cursor * AUTOSAVE_CYCLE + autosave_cnt)-y)) && (x <= (250-(cursor * AUTOSAVE_CYCLE+ autosave_cnt)+y)) && (cursor >= 0)) {
+				BSP_LCD_DrawPixel(20 + x, 128 + y, DISPLAY_COLOR_LTBLUE);
+			} else {
+				BSP_LCD_DrawPixel(20 + x, 128 + y, 0x00000000);
 			}
 		}
-
 	}
-
-
 }
 
 
