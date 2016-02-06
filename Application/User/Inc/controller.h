@@ -1,8 +1,8 @@
 /**
  *  Project     WeldingMeter
- *  @file		jpg_data.h
+ *  @file		controller.h
  *  @author		Gerd Bartelt - www.sebulli.com
- *  @brief		header file for jpg_data.c
+ *  @brief		header file for controller.c
  *
  *  @copyright	GPL3
  *
@@ -20,22 +20,15 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-#ifndef __jpg_data_H
-#define __jpg_data_H
+#ifndef __controller_H
+#define __controller_H
 
 /* includes  ---------------------------------------------------------*/
 #include <stdint.h>
 
-/* global variables -------------------------------------------------*/
-extern const uint8_t JPG_INTRO_DATA[];
-extern const int JPG_INTRO_LENGTH;
-
-extern const uint8_t JPG_BACKGROUND_DATA[];
-extern const int JPG_BACKGROUND_LENGTH;
-
-extern const uint8_t JPG_SETTINGS_DATA[];
-extern const int JPG_SETTINGS_LENGTH;
-
 /* Function prototypes -------------------------------------------------*/
+void CONTROLLER_Init(void);
+void CONTROLLER_Task(void);
 
-#endif // __jpg_data_H
+
+#endif // __controller_H

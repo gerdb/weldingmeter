@@ -1,3 +1,25 @@
+/**
+ *  Project     WeldingMeter
+ *  @file		measurement.c
+ *  @author		Gerd Bartelt - www.sebulli.com
+ *  @brief		Signal processing of the current signal
+ *
+ *  @copyright	GPL3
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
 /* Includes ------------------------------------------------------------------*/
 #include "measurement.h"
 
@@ -38,7 +60,7 @@ int pos_edge_cnt = 0;
 int period_cnt = 0;
 int period = 0;
 int pulse = 0;
-int sensor_offset = 2068;
+int sensor_offset = SENSOR_OFFSET;
 int offset_cnt = 0;
 int measurement_run = RUN;
 int stop_cnt = 0;
@@ -76,9 +98,12 @@ inline void MEASUREMENT_NewSample(uint16_t value) {
 	if (offset_cnt <= OFFSET_TIME) {
 		offset_cnt++;
 		if (offset_cnt == OFFSET_TIME) {
-			sensor_offset = slowfilt;
-			zoom_min_hold = sensor_offset;
-			zoom_max_hold = sensor_offset;
+			if ( ( slowfilt >= (SENSOR_OFFSET - OFFSET_THRESHOLD)) &&
+				 ( slowfilt <= (SENSOR_OFFSET + OFFSET_THRESHOLD))) {
+				sensor_offset = slowfilt;
+				zoom_min_hold = sensor_offset;
+				zoom_max_hold = sensor_offset;
+			}
 		}
 	}
 
@@ -286,7 +311,7 @@ void MEASUREMENT_SaveHistory(void) {
 	int i;
 	history_index++;
 	if (history_index >= HISTORY_ENTRIES)
-		history_index = HISTORY_ENTRIES;
+		history_index = 0;
 
 	history[history_index].zoom_min = MEASUREMENT_GetMin();
 	history[history_index].zoom_max = MEASUREMENT_GetMax();

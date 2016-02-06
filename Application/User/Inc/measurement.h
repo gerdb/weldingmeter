@@ -1,3 +1,25 @@
+/**
+ *  Project     WeldingMeter
+ *  @file		measurement.h
+ *  @author		Gerd Bartelt - www.sebulli.com
+ *  @brief		header file for measurement.c
+ *
+ *  @copyright	GPL3
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
 #ifndef __measurement_H
 #define __measurement_H
 
@@ -19,6 +41,7 @@
 #define SENSOR_OFFSET 2068 // ADC at 0A - see static int MEASUREMENT_ScaleAmps(int rawval)
 #define ONE_MEASUREMENT_SEC 100000
 #define OFFSET_TIME (2*ONE_MEASUREMENT_SEC) // Sample count. 200000 @100KHz = 2sec
+#define OFFSET_THRESHOLD 50 // Max deviation for zero offset calibration in ADC steps. 50 = +- 5A
 #define AUTOSAVE_CYCLE 10 // in 0.256s steps
 #define HISTORY_ENTRIES (250 / AUTOSAVE_CYCLE)
 
