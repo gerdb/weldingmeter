@@ -28,54 +28,85 @@ static int MEASUREMENT_ScaleAmps(int rawval);
 
 
 /* Private variables ---------------------------------------------------------*/
+
+// Some PT1 (IIR) filter variables
 int prefilt = 0;
 int prefilt_L = 0;
+
 int dc_offset = 0;
 int dc_offset_L = 0;
+
 int slowfilt = 0;
 int slowfilt_L = 0;
+
 int zoomfilt = 0;
 int zoomfilt_L = 0;
+
+// Variables for scope 2 with variable time base
 int zoomfilt_shift = 0;
-int zoom_n = 1;
-int zoom_n_cnt = 0;
+int zoom_n = 1; // variable time base
+int zoom_n_cnt = 0;	// Counter for variable time base
 
-int zoom_min = 4096;
-int zoom_max = 0;
-int zoom_min_hold = SENSOR_OFFSET;
-int zoom_max_hold = SENSOR_OFFSET;
-int zoom[160];
-int trigger_pos = 0;
-int zoom_cnt = 0;
-enTRIGGER trigger = TRG_PREPARE;
-int triggercnt = 0;
-int sensor = 0;
-int trigger_prepare_cnt = 0;
 
+int zoom_min = 4096; // Min and max values
+int zoom_max = 0; // Min and max values
+int zoom_min_hold = SENSOR_OFFSET; // Min and max values
+int zoom_max_hold = SENSOR_OFFSET; // Min and max values
+int zoom[160];	// Array with zoomed scope
+
+int trigger_pos = 0;	// Trigger position
+int zoom_cnt = 0;	// Index in the zoom field
+enTRIGGER trigger = TRG_PREPARE; // Trigger state machine
+int triggercnt = 0; // Trigger counter
+int trigger_prepare_cnt = 0; // Counter for pre-trigger
+
+// Edge detection
 int sign = 0;
 int sign_old = 0;
 int pos_edge = 0;
 int neg_edge = 0;
 int pos_edge_cnt = 0;
+
+// Count the puls and period time
 int period_cnt = 0;
 int period = 0;
 int pulse = 0;
+
+// Auto zero offset calibration
 int sensor_offset = SENSOR_OFFSET;
 int offset_cnt = 0;
+
+// stop or run
 int measurement_run = RUN;
 int stop_cnt = 0;
 
+// Variables used to save the history
 uint8_t zoom_tmp[160];
 MEASUREMENT_tHistory history[HISTORY_ENTRIES];
 int history_index = -1;
 
+/**
+ * Initialize the module
+ */
 void MEASUREMENT_Init(void) {
 }
 
+/**
+ * Getter for run or stop state
+ *
+ * @return RUN or STOP
+ *
+ */
 int MEASUREMENT_GetRun(void) {
 	return measurement_run;
 }
 
+/**
+ * Function to process a new ADC value.
+ *
+ * @param value
+ * 	The new ADC value
+ */
 inline void MEASUREMENT_NewSample(uint16_t value) {
 
 	// Filter the stream with t= 80µs for edge detection (frequency calculation)
@@ -128,6 +159,8 @@ inline void MEASUREMENT_NewSample(uint16_t value) {
 	zoom_n_cnt++;
 	if (zoom_n_cnt >= zoom_n) {
 		zoom_n_cnt = 0;
+
+		// Generate the trigger event
 		if (trigger != TRG_COMPLETE) {
 
 			if (trigger_prepare_cnt <= 32) {
@@ -148,6 +181,7 @@ inline void MEASUREMENT_NewSample(uint16_t value) {
 			if (zoomfilt > zoom_max)
 				zoom_max = zoomfilt;
 
+			// Finished
 			if (trigger == TRG_TRIGGERED) {
 				if (triggercnt > 0) {
 					triggercnt--;
@@ -199,12 +233,24 @@ inline void MEASUREMENT_NewSample(uint16_t value) {
 
 }
 
+/**
+ * Getter for frequency
+ *
+ * @return frequency in Hz
+ *
+ */
 int MEASUREMENT_GetFrequency(void) {
 	if (period == 0)
 		return 0;
 	return SAMPLING_FRQ / period;
 }
 
+/**
+ * Getter for duty cycle
+ *
+ * @return duty cycle in %
+ *
+ */
 int MEASUREMENT_GetRatio(void) {
 	if (period == 0)
 		return 100;
@@ -236,26 +282,53 @@ static int MEASUREMENT_ScaleAmps(int rawval) {
 	return (((rawval-sensor_offset)*99)/512);
 }
 
+/**
+ * Getter for slow filtered current
+ *
+ * @return current in amps
+ *
+ */
 int MEASUREMENT_GetSlowFilt(void) {
 	return MEASUREMENT_ScaleAmps(slowfilt);
 }
 
+/**
+ * Getter for minimum current
+ *
+ * @return current in amps
+ *
+ */
 int MEASUREMENT_GetMin(void) {
 	return MEASUREMENT_ScaleAmps(zoom_min_hold);
 }
+
+/**
+ * Getter for maximum current
+ *
+ * @return current in amps
+ *
+ */
 int MEASUREMENT_GetMax(void) {
 	return MEASUREMENT_ScaleAmps(zoom_max_hold);
 }
 
-
+/**
+ * Copies the zoomed filed
+ *
+ * @param target
+ * 	destination buffer
+ *
+ */
 void MEASUREMENT_CopyZoomField(uint8_t target[]) {
 	int i,ii,iii;
 	int scale, offset;
 	int val;
 
+	// do it only during RUN
 	if (measurement_run == STOP)
 		return;
 
+	// Scale it to 80% of scope2 screen height and adjust it to the middle
 	offset = (zoom_min + zoom_max) / 2;
 	scale = (zoom_max - zoom_min);
 
@@ -307,6 +380,9 @@ void MEASUREMENT_CopyZoomField(uint8_t target[]) {
 
 }
 
+/**
+ * Save the current values for hitory
+ */
 void MEASUREMENT_SaveHistory(void) {
 	int i;
 	history_index++;
@@ -323,6 +399,12 @@ void MEASUREMENT_SaveHistory(void) {
 		history[history_index].zoom[i] = zoom_tmp[i];
 }
 
+/**
+ * Gets one entry of the history buffer
+ *
+ * @index
+ * 	index of the history
+ */
 MEASUREMENT_tHistory MEASUREMENT_GetHistory(int index) {
 	int i;
 

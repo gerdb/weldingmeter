@@ -32,60 +32,61 @@
 
 /* Private defines ---------------------------------------------------------*/
 
-#define TOUCH_BACK_XMIN         290
-#define TOUCH_BACK_XMAX         340
-#define TOUCH_BACK_YMIN         211
-#define TOUCH_BACK_YMAX         261
+// Touch fields
+#define TOUCH_BACK_XMIN		290
+#define TOUCH_BACK_XMAX		340
+#define TOUCH_BACK_YMIN		211
+#define TOUCH_BACK_YMAX		261
 
-#define TOUCH_FORW_XMIN         350
-#define TOUCH_FORW_XMAX         400
-#define TOUCH_FORW_YMIN         211
-#define TOUCH_FORW_YMAX         261
+#define TOUCH_FORW_XMIN		350
+#define TOUCH_FORW_XMAX		400
+#define TOUCH_FORW_YMIN		211
+#define TOUCH_FORW_YMAX		261
 
-#define TOUCH_NEXT_XMIN         420
-#define TOUCH_NEXT_XMAX         470
-#define TOUCH_NEXT_YMIN         211
-#define TOUCH_NEXT_YMAX         261
+#define TOUCH_NEXT_XMIN		420
+#define TOUCH_NEXT_XMAX		470
+#define TOUCH_NEXT_YMIN		211
+#define TOUCH_NEXT_YMAX		261
 
-#define TOUCH_VOL_M_XMIN         10
-#define TOUCH_VOL_M_XMAX         80
-#define TOUCH_VOL_M_YMIN         10
-#define TOUCH_VOL_M_YMAX         70
+#define TOUCH_VOL_M_XMIN	10
+#define TOUCH_VOL_M_XMAX	80
+#define TOUCH_VOL_M_YMIN	10
+#define TOUCH_VOL_M_YMAX	70
 
-#define TOUCH_VOL_P_XMIN         310
-#define TOUCH_VOL_P_XMAX         380
-#define TOUCH_VOL_P_YMIN         10
-#define TOUCH_VOL_P_YMAX         70
+#define TOUCH_VOL_P_XMIN	310
+#define TOUCH_VOL_P_XMAX	380
+#define TOUCH_VOL_P_YMIN	10
+#define TOUCH_VOL_P_YMAX	70
 
-#define TOUCH_AC_XMIN         20
-#define TOUCH_AC_XMAX         70
-#define TOUCH_AC_YMIN         111
-#define TOUCH_AC_YMAX         161
+#define TOUCH_AC_XMIN		20
+#define TOUCH_AC_XMAX		70
+#define TOUCH_AC_YMIN		111
+#define TOUCH_AC_YMAX		161
 
-#define TOUCH_DC_XMIN         80
-#define TOUCH_DC_XMAX         130
-#define TOUCH_DC_YMIN         111
-#define TOUCH_DC_YMAX         161
+#define TOUCH_DC_XMIN		80
+#define TOUCH_DC_XMAX		130
+#define TOUCH_DC_YMIN		111
+#define TOUCH_DC_YMAX		161
 
-#define TOUCH_MEAN_XMIN         180
-#define TOUCH_MEAN_XMAX         230
-#define TOUCH_MEAN_YMIN         111
-#define TOUCH_MEAN_YMAX         251
+#define TOUCH_MEAN_XMIN		180
+#define TOUCH_MEAN_XMAX		230
+#define TOUCH_MEAN_YMIN		111
+#define TOUCH_MEAN_YMAX		251
 
-#define TOUCH_PEAK_XMIN         240
-#define TOUCH_PEAK_XMAX         290
-#define TOUCH_PEAK_YMIN         111
-#define TOUCH_PEAK_YMAX         161
+#define TOUCH_PEAK_XMIN		240
+#define TOUCH_PEAK_XMAX		290
+#define TOUCH_PEAK_YMIN		111
+#define TOUCH_PEAK_YMAX		161
 
-#define TOUCH_LANG_DE_XMIN         20
-#define TOUCH_LANG_DE_XMAX         70
-#define TOUCH_LANG_DE_YMIN         201
-#define TOUCH_LANG_DE_YMAX         251
+#define TOUCH_LANG_DE_XMIN	20
+#define TOUCH_LANG_DE_XMAX	70
+#define TOUCH_LANG_DE_YMIN	201
+#define TOUCH_LANG_DE_YMAX	251
 
-#define TOUCH_LANG_DA_XMIN         80
-#define TOUCH_LANG_DA_XMAX         130
-#define TOUCH_LANG_DA_YMIN         201
-#define TOUCH_LANG_DA_YMAX         251
+#define TOUCH_LANG_DA_XMIN	80
+#define TOUCH_LANG_DA_XMAX	130
+#define TOUCH_LANG_DA_YMIN	201
+#define TOUCH_LANG_DA_YMAX	251
 
 /* Private functions ---------------------------------------------------------*/
 
@@ -108,32 +109,39 @@ typedef enum {
 	settings,
 	fade_out_settings
 
-} en_DISPLAY_startup;
+} en_CONTROLLER_screen;
 
+en_CONTROLLER_screen screen = start;	// The current state
+int startup_cnt = 0;	// Timer to switch between the screens and to fade in/out
 
-en_DISPLAY_startup screen = start;
-int startup_cnt = 0;
+int cursor = 0;	// Cursor position
+int autosave_cnt = 0;	// Autosave timer
 
-int cursor = 0;
-int autosave_cnt = 0;
+int speak_cnt = 0;	// Timer for voice output
 
-int speak_cnt = 0;
-
-void CONTROLLER_Init(void){
-
+/**
+ * Initialization of the module
+ */
+void CONTROLLER_Init(void) {
 }
 
+
+/**
+ * Controller task with main statemachine
+ */
 void CONTROLLER_Task(void) {
 
 	static int taskcnt_256ms = 0;
 	int taskcnt_256ms_mod_16;
 	int taskcnt_256ms_mod_32;
 
+	// Timer to switch between the screens and to fade in/out
 	if (startup_cnt < 99999) {
 		startup_cnt++;
 	}
 
 	switch (screen) {
+	// Start state
 	case start:
 		if (startup_cnt > 1000) {
 			startup_cnt = 0;
@@ -142,6 +150,8 @@ void CONTROLLER_Task(void) {
 			AUDIO_PlaySound(SOUND_PING);
 		}
 		break;
+
+	// Fade in the intro screen
 	case fade_in_intro:
 		BSP_LCD_SetTransparency(1, startup_cnt);
 
@@ -154,6 +164,8 @@ void CONTROLLER_Task(void) {
 			BSP_LCD_SelectLayer(1);
 		}
 		break;
+
+	// Intro screen with welding effect
 	case intro:
 		if (startup_cnt == 1500) {
 			AUDIO_PlaySound(SOUND_SPARK);
@@ -175,6 +187,8 @@ void CONTROLLER_Task(void) {
 			screen = fade_out_intro;
 		}
 		break;
+
+	// Fade out the intro screen
 	case fade_out_intro:
 		BSP_LCD_SetTransparency(1, 255 - startup_cnt);
 
@@ -184,6 +198,8 @@ void CONTROLLER_Task(void) {
 			DISPLAY_ShowBackground();
 		}
 		break;
+
+	// Fade in the main screen
 	case fade_in_main_screen:
 		BSP_LCD_SetTransparency(0, startup_cnt);
 
@@ -205,6 +221,8 @@ void CONTROLLER_Task(void) {
 			DISPLAY_Show_Version();
 		}
 		break;
+
+	// Display the main screen. The tasks are shared over the 1ms time slots
 	case main_screen:
 
 		taskcnt_256ms_mod_16 = taskcnt_256ms % 16;
@@ -213,6 +231,8 @@ void CONTROLLER_Task(void) {
 		if (MEASUREMENT_GetRun() == RUN) {
 			cursor = -1;
 			if (taskcnt_256ms == 0) {
+
+				// Get new value and handle the autosave mechanism
 				DISPLAY_NewValue(MEASUREMENT_GetSlowFilt());
 				if (autosave_cnt < AUTOSAVE_CYCLE) {
 					autosave_cnt++;
@@ -243,6 +263,8 @@ void CONTROLLER_Task(void) {
 				DISPLAY_Show_Scope2();
 			}
 		} else {
+
+			// Show the cursor and reset it to position 4
 			if (cursor == -1) {
 				cursor = 4;
 				DISPLAY_ShowHistory(cursor);
@@ -250,7 +272,7 @@ void CONTROLLER_Task(void) {
 			DISPLAY_Show_Cursor(cursor, autosave_cnt);
 		}
 
-
+		// Read touch buttons
 		if (taskcnt_256ms_mod_16 == 15) {
 			CONTROLLER_TouchButtons();
 		}
@@ -260,6 +282,8 @@ void CONTROLLER_Task(void) {
 			taskcnt_256ms = 0;
 		}
 		break;
+
+	// Fade ou the main screen
 	case fade_out_main_screen:
 		BSP_LCD_SetTransparency(0, 255 - startup_cnt);
 		BSP_LCD_SetTransparency(1, 255 - startup_cnt);
@@ -270,6 +294,8 @@ void CONTROLLER_Task(void) {
 			DISPLAY_ShowSettings();
 		}
 		break;
+
+	// Fade in the settings screen
 	case fade_in_settings:
 		BSP_LCD_SetTransparency(0, startup_cnt);
 
@@ -281,43 +307,47 @@ void CONTROLLER_Task(void) {
 			BSP_LCD_SetTransparency(1, 255);
 		}
 		break;
+
+	// The settings screen
 	case settings:
 		CONTROLLER_TouchButtons();
 		DISPLAY_DrawBar(100, 34, 10, SETUP_GetVolume());
 		if (SETUP_GetACDC() == SETUP_AC) {
 			BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
-			BSP_LCD_FillCircle(106,99,4);
+			BSP_LCD_FillCircle(106, 99, 4);
 			BSP_LCD_SetTextColor(DISPLAY_COLOR_LTBLUE);
-			BSP_LCD_FillCircle(46,99,4);
+			BSP_LCD_FillCircle(46, 99, 4);
 		} else {
 			BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
-			BSP_LCD_FillCircle(46,99,4);
+			BSP_LCD_FillCircle(46, 99, 4);
 			BSP_LCD_SetTextColor(DISPLAY_COLOR_LTBLUE);
-			BSP_LCD_FillCircle(106,99,4);
+			BSP_LCD_FillCircle(106, 99, 4);
 		}
 		if (SETUP_GetMEAN_PEAK() == SETUP_MEAN) {
 			BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
-			BSP_LCD_FillCircle(266,99,4);
+			BSP_LCD_FillCircle(266, 99, 4);
 			BSP_LCD_SetTextColor(DISPLAY_COLOR_LTBLUE);
-			BSP_LCD_FillCircle(206,99,4);
+			BSP_LCD_FillCircle(206, 99, 4);
 		} else {
 			BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
-			BSP_LCD_FillCircle(206,99,4);
+			BSP_LCD_FillCircle(206, 99, 4);
 			BSP_LCD_SetTextColor(DISPLAY_COLOR_LTBLUE);
-			BSP_LCD_FillCircle(266,99,4);
+			BSP_LCD_FillCircle(266, 99, 4);
 		}
 		if (SETUP_GetLanguage() == SETUP_DE) {
 			BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
-			BSP_LCD_FillCircle(106,189,4);
+			BSP_LCD_FillCircle(106, 189, 4);
 			BSP_LCD_SetTextColor(DISPLAY_COLOR_LTBLUE);
-			BSP_LCD_FillCircle(46,189,4);
+			BSP_LCD_FillCircle(46, 189, 4);
 		} else {
 			BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
-			BSP_LCD_FillCircle(46,189,4);
+			BSP_LCD_FillCircle(46, 189, 4);
 			BSP_LCD_SetTextColor(DISPLAY_COLOR_LTBLUE);
-			BSP_LCD_FillCircle(106,189,4);
+			BSP_LCD_FillCircle(106, 189, 4);
 		}
 		break;
+
+	// Fade out the settings screen
 	case fade_out_settings:
 		BSP_LCD_SetTransparency(0, 255 - startup_cnt);
 		BSP_LCD_SetTransparency(1, 255 - startup_cnt);
@@ -332,33 +362,36 @@ void CONTROLLER_Task(void) {
 
 }
 
-
+/**
+ * Determine, whether the current shout be said.
+ *
+ */
 static void CONTROLLER_Speak(void) {
+
 	int val = 0;
 	static int said_val = 0;
 
+	// Which value? Peak or mean?
 	if (SETUP_GetMEAN_PEAK() == SETUP_MEAN) {
-		val= MEASUREMENT_GetSlowFilt();
+		val = MEASUREMENT_GetSlowFilt();
 	} else {
-		val= MEASUREMENT_GetMax();
+		val = MEASUREMENT_GetMax();
 	}
 
+	// Say it at least every 5 seconds, but not more than every second
 	speak_cnt++;
-
 	if (speak_cnt >= 5) {
 
-		if (	( (val* 10) > (said_val*11) ) || // > 10%
-				( (val* 10) < (said_val*9) ) || // < 10%
-				( speak_cnt > 20 ) ) { // always after 5sec
+		// Wait, if there was no, or a slight change
+		if (((val * 10) > (said_val * 11)) || // > 10%
+				((val * 10) < (said_val * 9)) || // < 10%
+				(speak_cnt > 20)) { // always after 5sec
 			speak_cnt = 0;
 
 			VOICE_Say(val);
 			said_val = val;
-
 		}
-
 	}
-
 
 }
 
@@ -391,8 +424,8 @@ static void CONTROLLER_TouchButtons(void) {
 						&& (TS_State.touchY[0] >= TOUCH_BACK_YMIN)
 						&& (TS_State.touchY[0] <= TOUCH_BACK_YMAX)) {
 					if (MEASUREMENT_GetRun() == STOP) {
-						if (cursor < (HISTORY_ENTRIES-1))
-							cursor ++;
+						if (cursor < (HISTORY_ENTRIES - 1))
+							cursor++;
 						AUDIO_PlaySound(SOUND_BEEP);
 						DISPLAY_ShowHistory(cursor);
 					}
@@ -403,7 +436,7 @@ static void CONTROLLER_TouchButtons(void) {
 						&& (TS_State.touchY[0] <= TOUCH_FORW_YMAX)) {
 					if (MEASUREMENT_GetRun() == STOP) {
 						if (cursor > 0)
-							cursor --;
+							cursor--;
 						AUDIO_PlaySound(SOUND_BEEP);
 						DISPLAY_ShowHistory(cursor);
 					}

@@ -34,27 +34,43 @@ static AUDIO_FifoDef AUDIO_GetLastFifo(void);
 
 /* Private variables ---------------------------------------------------------*/
 
-
+// Some flags to control the audio playback
 int audio_play = 0;
 int audio_pause = 0;
 int audio_mute = 0;
 int audio_played = 0;
 int audio_read = 0;
 
-uint8_t audio_buff[AUDIO_OUT_BUFFER_SIZE];
-int audio_file_pos = 0;
-const uint8_t* audio_data_ptr;
-int audio_data_length;
-AUDIO_FifoDef audio_fifo[AUDIO_STACK_SIZE];
-int audio_fifo_index = -1;
 
+uint8_t audio_buff[AUDIO_OUT_BUFFER_SIZE]; // Buffer for audio DMA transfer
+int audio_file_pos = 0;	// file position of the WAV file (WAV array in flash)
+
+const uint8_t* audio_data_ptr; // pointer to the WAV array
+int audio_data_length; // Length of the wav array
+
+AUDIO_FifoDef audio_fifo[AUDIO_STACK_SIZE]; // Fifo to play more than 1 WAV files
+int audio_fifo_index = -1; // Fifo index
+
+/**
+ * Initialize the Audio module and configure the sound chip
+ */
 void AUDIO_Init(void) {
-
 	BSP_AUDIO_OUT_Init(OUTPUT_DEVICE_BOTH, 1, AUDIO_FREQUENCY_22K);
 	AUDIO_SetVolume(SETUP_GetVolume());
 }
 
+/**
+ * Play a new WAV file, actually put it into the fifo
+ *
+ * @param wav_data
+ *  pointer to the WAV array
+ * @param wav_length
+ *  length of the WAV data in bytes
+ *
+ */
 void AUDIO_PlayWav(const uint8_t* wav_data, int wav_length){
+
+	// Do not play it at volume = 0
 	if (audio_mute)
 		return;
 
@@ -67,6 +83,12 @@ void AUDIO_PlayWav(const uint8_t* wav_data, int wav_length){
 
 }
 
+/**
+ * Plays a sound by its sound ID
+ *
+ * @param sound
+ * 	ID of the sound
+ */
 void AUDIO_PlaySound(enSOUND sound) {
 	switch (sound) {
 	case SOUND_PING:
@@ -83,7 +105,9 @@ void AUDIO_PlaySound(enSOUND sound) {
 	}
 }
 
-
+/**
+ * Get the first entry from the fifo
+ */
 static AUDIO_FifoDef AUDIO_GetLastFifo(void) {
 	AUDIO_FifoDef fifo_element;
 	int i;
@@ -102,11 +126,14 @@ static AUDIO_FifoDef AUDIO_GetLastFifo(void) {
 	return fifo_element;
 }
 
+/**
+ * Checks whether there is new data in the fifo. If yes, play it
+ */
 static void AUDIO_CheckFifo(void) {
 
 	AUDIO_FifoDef fifo_element;
 
-	// Something in the fifo, play it
+	// Something in the fifo? -> play it
 	if ((audio_fifo_index >= 0) && (!audio_play)) {
 		fifo_element = AUDIO_GetLastFifo();
 		AUDIO_PlayNow(fifo_element.wav_data,fifo_element.wav_length );
@@ -114,28 +141,46 @@ static void AUDIO_CheckFifo(void) {
 
 }
 
+/**
+ * Play the WAV now. (do not put it into a fifo)
+ *
+ * @param wav_data
+ *  pointer to the WAV array
+ * @param wav_length
+ *  length of the WAV data in bytes
+ */
 static void AUDIO_PlayNow(const uint8_t* wav_data, int wav_length) {
 
+	// Remember the WAV data
 	audio_data_ptr = wav_data;
 	audio_data_length = wav_length;
 
+	// Read the WAV
 	audio_file_pos = 0;
 	audio_read = 0;
 	AUDIO_Read((uint16_t*)&audio_buff[0], AUDIO_OUT_BUFFER_SIZE);
 
+	// Start playing
 	if (audio_pause) {
 		BSP_AUDIO_OUT_Resume();
 		audio_pause = 0;
 	}
 	audio_played = 0;
-
 	audio_play = 1;
 
+	// Play it!
 	BSP_AUDIO_OUT_Play((uint16_t*) &audio_buff[0], AUDIO_OUT_BUFFER_SIZE);
-
-
 }
 
+/**
+ * Reads an amount of bytes from the WAV array
+ *
+ * @param buff
+ * 	pointer to destinated buffer
+ * @param size
+ * 	size of bytes to read
+ *
+ */
 void AUDIO_Read(uint16_t* buff, int size) {
 	int read = 0;
 	uint16_t waveval;
@@ -144,10 +189,12 @@ void AUDIO_Read(uint16_t* buff, int size) {
 
 	while ((audio_file_pos < audio_data_length) && (read < size)) {
 
+		// Get the 8 bit PCM unsigned value and scale it to 16bit signed
 		waveval = audio_data_ptr[audio_file_pos];
 		waveval -=128;
 		waveval *= 256;
 
+		// Put it to the left and right channel
 		*buff = waveval;
 		buff++;
 		*buff = 0;
@@ -171,7 +218,7 @@ void AUDIO_Read(uint16_t* buff, int size) {
 		}
 	}
 
-	// Fill it with silence
+	// Fill the rest with silence
 	while (read < size) {
 		*buff = 0;
 		buff++;
@@ -181,16 +228,20 @@ void AUDIO_Read(uint16_t* buff, int size) {
 
 }
 
+
+/**
+ * Cyclic called audio task
+ */
 void AUDIO_Task(void) {
-
-
-
 	AUDIO_CheckFifo();
-
-
 }
 
-
+/**
+ * Sets the volume from 0 to 10
+ * Actually we do not use the full dynamic of the discovery board
+ * (just 0..50 instead of 0..100), because it would be to loud.
+ *
+ */
 void AUDIO_SetVolume(int vol) {
 	if (vol != 0) {
 		BSP_AUDIO_OUT_SetVolume( vol * MAXVOLUME);

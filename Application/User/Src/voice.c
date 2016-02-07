@@ -27,15 +27,19 @@
 #include "audio.h"
 #include "setup.h"
 
-static void VOICE_SayNumber(int number);
-static void VOICE_SayAnd(void);
-
-
 #include "voice_data_de.h"
 #include "voice_data_da.h"
 
+/* Private function ----------------------------------------------------------*/
+static void VOICE_SayNumber(int number);
+static void VOICE_SayAnd(void);
 
-
+/**
+ * Outputs one number from 1..20,30,40..100 in german or danish
+ *
+ * @param number
+ * 	The number to say
+ */
 static void VOICE_SayNumber(int number) {
 	if (SETUP_GetLanguage() == SETUP_DE) {
 		switch (number) {
@@ -103,20 +107,29 @@ static void VOICE_SayNumber(int number) {
 
 }
 
+/**
+ * Say the word "and" in german or danish
+ */
 static void VOICE_SayAnd(void) {
 	if (SETUP_GetLanguage() == SETUP_DE) {
 		AUDIO_PlayWav(VOICE_AND_DE_DATA, sizeof(VOICE_AND_DE_DATA));
 	} else {
 		AUDIO_PlayWav(VOICE_AND_DA_DATA, sizeof(VOICE_AND_DA_DATA));
-
 	}
 }
 
 
-
+/**
+ * Say a number from 1 to 999
+ *
+ * @param number
+ * 	the number to say
+ */
 void VOICE_Say (int number) {
+
 	int n_ones, n_tens, n_hundreds;
 
+	// Say "hundred ..." over 100
 	if (number > 100) {
 		n_hundreds = number / 100;
 		if (n_hundreds > 1) {

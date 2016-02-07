@@ -38,13 +38,10 @@
 
 /* Private functions ---------------------------------------------------------*/
 
-void DISPLAY_NewValue(int val);
 static void DISPLAY_DrawString(int xpos, int ypos, int size, char* s);
 static void DISPLAY_DrawChar(int xpos, int ypos, int size, char c);
-
-
-
-/* Private variables ---------------------------------------------------------*/
+static void DISPLAY_ShowJPG(uint32_t LayerIndex, const int jpg_length,
+		const uint8_t jpg_data[]);
 
 /* Types  ---------------------------------------------------------*/
 typedef struct {
@@ -53,25 +50,28 @@ typedef struct {
 	uint8_t* jpg_data;
 } IODEV;
 
+/* Global variables ---------------------------------------------------------*/
 
-extern const uint8_t font8x5[96][5];
+extern const uint8_t font8x5[96][5]; // 8x5 pixel bitmap font (LCD style)
 
-uint8_t scope1[250];
-uint8_t scope1_old[250];
-uint8_t scope2[160];
-uint8_t scope2_old[160];
-MEASUREMENT_tHistory history_entry;
+/* Private variables ---------------------------------------------------------*/
 
-uint8_t work[3100];
+uint8_t scope1[250];		// upper scope screen
+uint8_t scope1_old[250];	// and its last values
+uint8_t scope2[160];		// lower scope screen
+uint8_t scope2_old[160];	// and its last values
+
+MEASUREMENT_tHistory history_entry;	// history
+
+uint8_t work[3100];	// work memory for JPG processing
 JDEC jdec; // Decompression object
 JRESULT res; // Result code of TJpgDec API
 
 
 
-
-static void DISPLAY_ShowJPG(uint32_t LayerIndex, const int jpg_length,
-		const uint8_t jpg_data[]);
-
+/**
+ * Show the intro screen JPG
+ */
 void DISPLAY_ShowIntro(void) {
 	BSP_LCD_SetTransparency(0, 255);
 	BSP_LCD_SetTransparency(1, 0);
@@ -79,15 +79,34 @@ void DISPLAY_ShowIntro(void) {
 	BSP_LCD_SetTransparency(0, 0);
 }
 
+/**
+ * Show the main screen JPG
+ */
 void DISPLAY_ShowBackground(void) {
 	DISPLAY_ShowJPG(0, JPG_BACKGROUND_LENGTH, JPG_BACKGROUND_DATA);
 	BSP_LCD_SetTransparency(1, 0);
 }
+
+/**
+ * Show the settings screen JPG
+ */
 void DISPLAY_ShowSettings(void) {
 	DISPLAY_ShowJPG(0, JPG_SETTINGS_LENGTH, JPG_SETTINGS_DATA);
 	BSP_LCD_SetTransparency(1, 0);
 }
 
+/**
+ * Draw a string at a destinated position
+ *
+ * @param xpos
+ * 	start postion from left
+ * @param ypos
+ * 	start postion from top
+ * @param size
+ * 	Size of one pixel
+ * @param s
+ * 	The \0 terminated string
+ */
 static void DISPLAY_DrawString(int xpos, int ypos, int size, char* s) {
 	while (*s) {
 		DISPLAY_DrawChar(xpos, ypos, size, *s);
@@ -96,6 +115,18 @@ static void DISPLAY_DrawString(int xpos, int ypos, int size, char* s) {
 	}
 }
 
+/**
+ * Draw a character at a destinated position
+ *
+ * @param xpos
+ * 	start postion from left
+ * @param ypos
+ * 	start postion from top
+ * @param size
+ * 	Size of one pixel
+ * @param c
+ * 	The character
+ */
 static void DISPLAY_DrawChar(int xpos, int ypos, int size, char c) {
 	int x, y;
 	int xx, yy;
@@ -103,12 +134,14 @@ static void DISPLAY_DrawChar(int xpos, int ypos, int size, char c) {
 	int pixelsize;
 	uint8_t col;
 
+	// large pixels with gap
 	if (size <= 2) {
 		pixelsize = size;
 	} else {
 		pixelsize = size - 1;
 	}
 
+	// Draw all pixels of the fonts
 	for (x = 0; x < 5; x++) {
 		col = font8x5[(int) (c - ' ')][x];
 		xx = xpos + x * size;
@@ -125,10 +158,22 @@ static void DISPLAY_DrawChar(int xpos, int ypos, int size, char c) {
 			}
 			col >>= 1;
 		}
-
 	}
 }
 
+/**
+ * Draw the volume bar
+ *
+ * @param xpos
+ * 	start postion from left
+ * @param ypos
+ * 	start postion from top
+ * @param max
+ *  range of the bar
+ * @param
+ *  value from 0 to max
+ *
+ */
 void DISPLAY_DrawBar(int xpos, int ypos, int max, int val) {
 	int x;
 	int xx;
@@ -148,10 +193,17 @@ void DISPLAY_DrawBar(int xpos, int ypos, int max, int val) {
 	}
 }
 
-
+/**
+ * Display the cursor below the first scope screen
+ *
+ * @param cursor
+ * 	Cursor position
+ * @autosave_cnt
+ *  Value of the autosave_cnt variable. This is to fine tune  the
+ *  cursor position
+ */
 void DISPLAY_Show_Cursor(int cursor, int autosave_cnt) {
 	int x,y;
-
 
 	for (x = -8; x< (250+8); x++) {
 		for (y = 0; y< 8; y++) {
@@ -164,12 +216,19 @@ void DISPLAY_Show_Cursor(int cursor, int autosave_cnt) {
 	}
 }
 
-
-
+/**
+ * Show the program version
+ */
 void DISPLAY_Show_Version(void) {
 	DISPLAY_DrawString(295, 42, 1, "V1.0.0");
 }
 
+/**
+ * Display the max amps value in the scope 2 screen
+ *
+ * @param amps
+ * 	Current in amps
+ */
 void DISPLAY_Show_Value_AmpsMax(int amps) {
 	char txt[10];
 	sprintf(txt, "%4d", amps);
@@ -177,6 +236,12 @@ void DISPLAY_Show_Value_AmpsMax(int amps) {
 	DISPLAY_DrawString(255, 152, 3, "A");
 }
 
+/**
+ * Display the min amps value in the scope 2 screen
+ *
+ * @param amps
+ * 	Current in amps
+ */
 void DISPLAY_Show_Value_AmpsMin(int amps) {
 	char txt[10];
 	sprintf(txt,"%4d", amps);
@@ -184,6 +249,12 @@ void DISPLAY_Show_Value_AmpsMin(int amps) {
 	DISPLAY_DrawString(255,227,3, "A");
 }
 
+/**
+ * Display the mean amps value
+ *
+ * @param amps
+ * 	Current in amps
+ */
 void DISPLAY_Show_Value_Amps(int amps) {
 	char txt[10];
 	sprintf(txt,"%4d", amps);
@@ -191,6 +262,12 @@ void DISPLAY_Show_Value_Amps(int amps) {
 	DISPLAY_DrawString(420,66,4, "A");
 }
 
+/**
+ * Display the frequency value
+ *
+ * @param frq
+ * 	frequency in Hz
+ */
 void DISPLAY_Show_Value_Frq(int frq) {
 	char txt[10];
 	sprintf(txt,"%3d", frq);
@@ -198,6 +275,12 @@ void DISPLAY_Show_Value_Frq(int frq) {
 	DISPLAY_DrawString(400,116,4, "Hz");
 }
 
+/**
+ * Display the duty cycle
+ *
+ * @param duty
+ * 	duty cycle in %
+ */
 void DISPLAY_Show_Value_Duty(int duty) {
 	char txt[10];
 	sprintf(txt,"%3d", duty);
@@ -206,7 +289,9 @@ void DISPLAY_Show_Value_Duty(int duty) {
 }
 
 /**
- * 250 x 101 Pixel
+ * Display the upper scope
+ *
+ * Size is 250 x 101 Pixel
  */
 void DISPLAY_Show_Scope1(void) {
 	int x;
@@ -219,11 +304,12 @@ void DISPLAY_Show_Scope1(void) {
 			scope1_old[x] = scope1[x];
 		}
 	}
-
 }
 
 /**
- * 250 x 101 Pixel
+ * Display the lower scope
+ *
+ * Size is 250 x 101 Pixel
  */
 void DISPLAY_Show_Scope2(void) {
 	int x;
@@ -239,6 +325,13 @@ void DISPLAY_Show_Scope2(void) {
 	}
 }
 
+
+/**
+ * Add a new value to the scope screen
+ *
+ * @param amps
+ * 	Current in amps
+ */
 void DISPLAY_NewValue(int amps) {
 	static int t = 0;
 	int val;
@@ -265,6 +358,8 @@ void DISPLAY_NewValue(int amps) {
 		val = 100;
 	scope1[249] = val;
 }
+
+
 /**
  * @brief  LCD configuration
  * @param  None
@@ -303,6 +398,9 @@ void DISPLAY_Init(void) {
 	BSP_LCD_SetTransparency(1, 0);
 }
 
+/**
+ * Initialize the scopes
+ */
 void DISPLAY_InitScopes(void) {
 	int x;
 	for (x = 0; x < 250; x++) {
@@ -315,6 +413,17 @@ void DISPLAY_InitScopes(void) {
 	}
 }
 
+/**
+ * JPG callback function to read a new byte from the buffer
+ *
+ * @jd
+ * 	handle of the jpg processing
+ * @buff
+ *  pointer to read buffer
+ * @nbyte
+ *  index of byte to read
+ *
+ */
 UINT in_func(JDEC* jd, BYTE* buff, UINT nbyte) {
 	int i;
 	int read = 0;
@@ -341,6 +450,17 @@ UINT in_func(JDEC* jd, BYTE* buff, UINT nbyte) {
 	}
 }
 
+/**
+ * JPG callback function to put the jpg onto the screen
+ *
+ * @jd
+ * 	handle of the jpg processing
+ * @bitmap
+ *  pointer to bitmap that contains the picture data
+ * @rect
+ *  drawing rectangle
+ *
+ */
 UINT out_func(JDEC* jd, void* bitmap, JRECT* rect) {
 	BYTE *src;
 	int i, x, y, bws;
@@ -364,6 +484,17 @@ UINT out_func(JDEC* jd, void* bitmap, JRECT* rect) {
 	return 1;
 }
 
+/**
+ * Dispay a jpg image
+ *
+ * @LayerIndex
+ * 	lcd layer
+ * @jpg_length
+ * 	length of the jpg data
+ * @jpg_data
+ * 	pointer toarray with jpg data
+ *
+ */
 static void DISPLAY_ShowJPG(uint32_t LayerIndex, const int jpg_length,
 		const uint8_t jpg_data[]) {
 	IODEV devid;
@@ -378,9 +509,15 @@ static void DISPLAY_ShowJPG(uint32_t LayerIndex, const int jpg_length,
 	}
 }
 
+/**
+ * Show the history
+ *
+ * @index
+ * 	index of the history entry
+ *
+ */
 void DISPLAY_ShowHistory(int index) {
 	int i;
-
 
 	history_entry = MEASUREMENT_GetHistory(index);
 

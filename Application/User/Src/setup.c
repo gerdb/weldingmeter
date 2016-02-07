@@ -41,6 +41,9 @@ uint16_t VarValue, VarDataTmp = 0;
 
 volatile int eeprom_err = 0;
 
+/**
+ * Inistialize the module and reads the settings from the EEProm
+ */
 void SETUP_Init(void) {
 	/* Unlock the Flash Program Erase controller */
 	HAL_FLASH_Unlock();
@@ -55,23 +58,43 @@ void SETUP_Init(void) {
 	EE_ReadVariable(VirtAddVarTab[ADDR_LANGUAGE],	&VarDataTab[ADDR_LANGUAGE]);
 }
 
+/**
+ * Sets the volume
+ *
+ * @param vol
+ * 	Volume value
+ */
 void SETUP_SetVolume(int vol) {
 	VarDataTab[ADDR_VOLUME] = vol;
 }
 
+/**
+ * Gets the volume
+ *
+ * @return the volum value
+ */
 int SETUP_GetVolume(void) {
 	if (VarDataTab[ADDR_VOLUME] <= 10)
 		return VarDataTab[ADDR_VOLUME];
 	else
 		return 5;
-
-
 }
 
+/**
+ * Sets the AC/DC setting
+ *
+ * @param acdc
+ * 	AC/DC setting value
+ */
 void SETUP_SetACDC(int acdc) {
 	VarDataTab[ADDR_ACDC] = acdc;
 }
 
+/**
+ * Gets the AC/DC setting
+ *
+ * @return the AC/DC setting
+ */
 int SETUP_GetACDC(void) {
 	if (VarDataTab[ADDR_ACDC] <= SETUP_AC)
 		return VarDataTab[ADDR_ACDC];
@@ -79,10 +102,22 @@ int SETUP_GetACDC(void) {
 		return SETUP_DC;
 }
 
+
+/**
+ * Sets the mean/peak setting
+ *
+ * @param meanpeak
+ * 	mean/peak setting
+ */
 void SETUP_SetMEAN_PEAK(int meanpeak) {
 	VarDataTab[ADDR_MEAN_PEAK] = meanpeak;
 }
 
+/**
+ * Gets the mean/peak setting
+ *
+ * @return the mean/peak setting
+ */
 int SETUP_GetMEAN_PEAK(void) {
 	if (VarDataTab[ADDR_MEAN_PEAK] <= SETUP_PEAK)
 		return VarDataTab[ADDR_MEAN_PEAK];
@@ -90,10 +125,21 @@ int SETUP_GetMEAN_PEAK(void) {
 		return SETUP_MEAN;
 }
 
+/**
+ * Sets the language
+ *
+ * @param language
+ * 	language setting
+ */
 void SETUP_SetLanguage(int language) {
 	VarDataTab[ADDR_LANGUAGE] = language;
 }
 
+/**
+ * Gets the language
+ *
+ * @return the language
+ */
 int SETUP_GetLanguage(void) {
 	if (VarDataTab[ADDR_LANGUAGE] <= SETUP_DA)
 		return VarDataTab[ADDR_LANGUAGE];
@@ -101,10 +147,12 @@ int SETUP_GetLanguage(void) {
 		return SETUP_DE;
 }
 
+/**
+ * Store the settings into the EEProm
+ */
 void SETUP_Save(void) {
 	EE_WriteVariable(VirtAddVarTab[ADDR_VOLUME],	VarDataTab[ADDR_VOLUME]);
 	EE_WriteVariable(VirtAddVarTab[ADDR_ACDC],    	VarDataTab[ADDR_ACDC]);
 	EE_WriteVariable(VirtAddVarTab[ADDR_MEAN_PEAK],	VarDataTab[ADDR_MEAN_PEAK]);
 	EE_WriteVariable(VirtAddVarTab[ADDR_LANGUAGE],	VarDataTab[ADDR_LANGUAGE]);
-
 }
