@@ -1,6 +1,16 @@
 # WeldingMeter
 
-A welding meter with voice output
+###A welding meter/scope with voice output. 
+This is perfect for TIG welding with a foot pedal.
+The actual current is read with voice output. For welding with pulse function the pulse frequency,
+duty cycle, minimum and maximum values and also the current curve is displayed.
+After the current reaches a value below 5A, the scope is automatically stopped and there is a history memory, 
+so it's possible to go scroll back the last 60 seconds.
+
+Voice output in german and danish language.
+Measurement range -300A to +300A.
+
+![welding meter](doc/weldingmeter1.jpg "welding meter")
 
 ### Intro screen
 ![Intro screen](doc/intro.png "Intro screen")
