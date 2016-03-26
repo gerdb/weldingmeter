@@ -33,8 +33,8 @@
 #define T_DC_OFFSET 16384 // Filter time of the DC offset filter in 10µs steps
 #define T_SLOWFILT 16384 // Filter time of the slow filter for 1st scope screen in 10µs steps
 #define POS_EDGE_TIMEOUT 100 // in 10µs steps. So 100 = 1000µs -> fmax = 1kHz
-#define THRESHOLD 20 // Threshold in ADC steps. 20 = +- 2A
-#define STOP_THRESHOLD 100 // Threshold in ADC steps. 100 = +- 10A
+#define THRESHOLD 20 // Threshold in ADC steps. 20 = +- 4A
+#define STOP_THRESHOLD 25 // Threshold in ADC steps. 25 = +- 5A
 
 #define SENSOR_ENTRIES 3
 

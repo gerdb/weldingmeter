@@ -220,7 +220,7 @@ void DISPLAY_Show_Cursor(int cursor, int autosave_cnt) {
  * Show the program version
  */
 void DISPLAY_Show_Version(void) {
-	DISPLAY_DrawString(295, 42, 1, "V1.0.0");
+	DISPLAY_DrawString(295, 42, 1, "V1.0.1");
 }
 
 /**
